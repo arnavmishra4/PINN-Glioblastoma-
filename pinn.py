@@ -21,7 +21,7 @@ from config import *
 from util import *
 
 from weight import Weighting
-from pinngbm.rbf_for_tf2.rbflayer import RBFLayer
+from rbf_for_tf2.rbflayer import RBFLayer
 from tflbfgs import LossAndFlatGradient
 import warnings
 
