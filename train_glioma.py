@@ -38,7 +38,7 @@ try:
     import tensorflow_probability as tfp
     from config   import DTYPE
     from DataSet  import DataSet
-    from options import Options   # str_from_dict may not exist
+    from options  import Options, str_from_dict   # str_from_dict may not exist
     from glioma   import Gmodel
 except ImportError as e:
     raise ImportError(
@@ -307,21 +307,49 @@ def predict_cell_density(mat_file: str,
         gz.ravel()[:, None],
     ])
 
-    # Build minimal opts to restore model
+    # ── Read the exact opts that were used during fine-tuning ──────────
+    # This ensures nn_opts (num_hidden_layers, num_neurons_per_layer, etc.)
+    # exactly match the checkpoint being restored, avoiding shape mismatches.
     from options import opts as default_opts
     import copy
-    opts = copy.deepcopy(default_opts)
-    opts['inv_dat_file'] = mat_file
-    opts['model_dir']    = finetune_dir
-    opts['restore']      = finetune_dir
-    opts['N']            = 1000
-    opts['Ntest']        = 1000
-    opts['Ndat']         = 1000
-    opts['Ndattest']     = 1000
+
+    saved_opts_path = os.path.join(finetune_dir, 'options.json')
+    if os.path.exists(saved_opts_path):
+        print(f"  Loading opts from {saved_opts_path}")
+        with open(saved_opts_path, 'r') as f:
+            saved_opts = json.load(f)
+        opts = copy.deepcopy(default_opts)
+        # Deep-merge saved opts into defaults so no key is missing
+        def deep_merge(base, override):
+            for k, v in override.items():
+                if isinstance(v, dict) and isinstance(base.get(k), dict):
+                    deep_merge(base[k], v)
+                else:
+                    base[k] = v
+        deep_merge(opts, saved_opts)
+    else:
+        print(f"  [WARNING] options.json not found in {finetune_dir}. "
+              f"Using default opts — this may cause a shape mismatch if "
+              f"the network architecture was customised.")
+        opts = copy.deepcopy(default_opts)
+
+    # Override only the fields needed for inference (no training)
+    opts['inv_dat_file']   = mat_file
+    opts['model_dir']      = finetune_dir
+    opts['restore']        = finetune_dir
+    opts['N']              = 1000
+    opts['Ntest']          = 1000
+    opts['Ndat']           = 1000
+    opts['Ndattest']       = 1000
     opts['num_init_train'] = 0
-    opts['lbfgs_opts']   = None
-    opts['trainD'] = opts['trainRHO'] = opts['trainx0'] = False
-    opts['trainth1'] = opts['trainth2'] = False
+    opts['lbfgs_opts']     = None
+    opts['saveckpt']       = False
+    opts['file_log']       = False
+    # Turn off all training flags
+    for flag in ['trainD','trainRHO','trainM','trainm','trainA',
+                 'trainx0','trainth1','trainth2','trainkadc']:
+        opts[flag] = False
+    # Zero out all loss weights except residual (needed to instantiate the model)
     for k in opts['weights']:
         opts['weights'][k] = None
     opts['weights']['res'] = 1.0
