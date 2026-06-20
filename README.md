@@ -1,4 +1,17 @@
-# Personalized Predictions of Glioblastoma Infiltration: Mathematical Models, Physics-Informed Neural Networks and Multimodal Scans
+<div align="center">
+
+# 🧠 M2 — Fisher-KPP Physics-Informed Neural Network
+
+**Biophysical Growth Predictor · Part of [NeuroSight](../)**
+
+*End-to-end clinical AI for GBM treatment monitoring and early detection*
+
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue?style=flat-square)](https://python.org)
+[![TensorFlow](https://img.shields.io/badge/Framework-TensorFlow-orange?style=flat-square)](https://tensorflow.org)
+[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](../LICENSE)
+
+</div>
+
 
 
 This repository contains the code the paper 
@@ -45,19 +58,6 @@ Patient data P1-P8 in the paper is obtained from
 *Lipkova et al., Personalized Radiotherapy Design for Glioblastoma Using Mathematical Tumor Modelling, Multimodal Scans and Bayesian Inference. IEEE Transactions on Medical Imaging (2019)* [[Paper]](https://ieeexplore.ieee.org/document/8654016) [[GitHub&Data]](https://github.com/JanaLipkova/GliomaSolver).
 
 
-<div align="center">
-
-# 🧠 M2 — Fisher-KPP Physics-Informed Neural Network
-
-**Biophysical Growth Predictor · Part of [NeuroSight](../)**
-
-*End-to-end clinical AI for GBM treatment monitoring and early detection*
-
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue?style=flat-square)](https://python.org)
-[![TensorFlow](https://img.shields.io/badge/Framework-TensorFlow-orange?style=flat-square)](https://tensorflow.org)
-[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](../LICENSE)
-
-</div>
 
 ---
 
