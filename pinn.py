@@ -163,15 +163,12 @@ class PINNSolver():
 
         self.model.summary()
 
-        # collect all trainable variables
         global glob_trainable_variables
-        glob_trainable_variables = []  # reset each time
+        glob_trainable_variables = []
         glob_trainable_variables += self.model.trainable_variables
         if self.geomodel is not None:
             self.geomodel.summary()
             glob_trainable_variables += self.geomodel.trainable_variables
-        if len(glob_trainable_variables) == 0:
-            glob_trainable_variables += self.model.network.trainable_variables
 
     
     @tf.function
