@@ -158,15 +158,20 @@ class PINNSolver():
             print('skip file log')
         
         
-        # may set some layer trainable = False
+                # may set some layer trainable = False
         self.model.set_trainable_layer(self.options.get('trainnnweight'))
-
+        
+        # Force-build so trainable_variables are registered (Keras 3)
+        _ = self.model(tf.zeros([1, self.model.input_dim], dtype=tf.float32))
+        
         self.model.summary()
-
+        
+        # collect all trainable variables
         global glob_trainable_variables
-        glob_trainable_variables = []
+        glob_trainable_variables = []  # reset each time
         glob_trainable_variables += self.model.trainable_variables
         if self.geomodel is not None:
+            _ = self.geomodel(tf.zeros([1, self.geomodel.input_dim], dtype=tf.float32))
             self.geomodel.summary()
             glob_trainable_variables += self.geomodel.trainable_variables
 
