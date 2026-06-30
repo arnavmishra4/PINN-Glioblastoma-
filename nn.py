@@ -75,7 +75,6 @@ class PINN(tf.keras.Model):
 
             first_layer.set_weights([new_weights, new_biases])
     
-    @tf.function
     def call(self, X):
         """Forward-pass through neural network."""
         Z = X
