@@ -168,7 +168,7 @@ class PINNSolver():
         
         # collect all trainable variables
         global glob_trainable_variables
-        glob_trainable_variables = []  # reset each time
+        glob_trainable_variables = []
         glob_trainable_variables += self.model.trainable_variables
         if self.model.param is not None:
             for pname, ptensor in self.model.param.items():
@@ -196,13 +196,10 @@ class PINNSolver():
             return v
     
         with tf.GradientTape(persistent=True, watch_accessed_variables=True) as tape:
-            # This tape is for derivatives with
-            # respect to trainable variables
-            watched = [_unwrap(v) for v in glob_trainable_variables]
-            tape.watch(watched)
+            tape.watch(glob_trainable_variables)
             loss = self.losses.getloss()
         
-        tv = [_unwrap(v) for v in glob_trainable_variables]
+        tv = glob_trainable_variables
         g = tape.gradient(loss['total'], tv)
         grad_stat = {}
         grad_by_loss = {}
