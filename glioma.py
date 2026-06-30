@@ -56,27 +56,27 @@ class PDE:
         y = x_r[:,2:3]
         z = x_r[:,3:4]
         xr = tf.concat([t,x,y,z], axis=1)
-        u = self.nn(xr)
-        
-        u_t = tf.gradients(u, t)[0]
-        u_x = tf.gradients(u, x)[0]
-        u_xx = tf.gradients(u_x, x)[0]
-        
-        u_y = tf.gradients(u, y)[0]
-        u_yy = tf.gradients(u_y, y)[0]
-        
-        u_z = tf.gradients(u, z)[0]
-        u_zz = tf.gradients(u_z, z)[0]
-
-        proliferation = self.param['rRHO'] * self.dataset.RHO * phi * u * ( 1 - u/self.param['M'])
-
-        diffusion = self.param['rD'] * self.dataset.DW * (P * phi * (u_xx + u_yy + u_zz) + 
-                                                            self.dataset.L* DxPphi * u_x +
-                                                            self.dataset.L* DyPphi * u_y +
-                                                            self.dataset.L* DzPphi * u_z )
-        
-        residual = phi * u_t - ( diffusion +  proliferation)
-        return {'residual':residual, 'proliferation': proliferation, 'diffusion': diffusion, 'phiut':phi * u_t}
+    
+        with tf.GradientTape(persistent=True) as tape2:
+            tape2.watch([t, x, y, z])
+            u = self.nn(xr)
+            u_x = tape2.gradient(u, x)
+            u_y = tape2.gradient(u, y)
+            u_z = tape2.gradient(u, z)
+            u_t = tape2.gradient(u, t)
+    
+        u_xx = tape2.gradient(u_x, x)
+        u_yy = tape2.gradient(u_y, y)
+        u_zz = tape2.gradient(u_z, z)
+        del tape2
+    
+        proliferation = self.param['rRHO'] * self.dataset.RHO * phi * u * (1 - u/self.param['M'])
+        diffusion = self.param['rD'] * self.dataset.DW * (P * phi * (u_xx + u_yy + u_zz) +
+                                                            self.dataset.L * DxPphi * u_x +
+                                                            self.dataset.L * DyPphi * u_y +
+                                                            self.dataset.L * DzPphi * u_z)
+        residual = phi * u_t - (diffusion + proliferation)
+        return {'residual':residual, 'proliferation':proliferation, 'diffusion':diffusion, 'phiut':phi*u_t}
 
     
 
