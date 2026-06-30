@@ -286,16 +286,13 @@ def predict_cell_density(mat_file: str,
     """
     After fine-tuning, evaluate the PINN on a uniform spatial grid at t=1
     and save the predicted tumor cell density as a .npy file.
-
     grid_resolution : number of points per spatial dimension
                       (use 64 for a quick check, 128 for higher fidelity)
     """
     from scipy.io import loadmat
     os.makedirs(output_dir, exist_ok=True)
-
     print("\n=== Generating cell density prediction ===")
     mat  = loadmat(mat_file)
-
     n    = grid_resolution
     coords = np.linspace(0, 1, n, dtype=DTYPE)
     gx, gy, gz = np.meshgrid(coords, coords, coords, indexing='ij')
@@ -306,13 +303,11 @@ def predict_cell_density(mat_file: str,
         gy.ravel()[:, None],
         gz.ravel()[:, None],
     ])
-
     # ── Read the exact opts that were used during fine-tuning ──────────
     # This ensures nn_opts (num_hidden_layers, num_neurons_per_layer, etc.)
     # exactly match the checkpoint being restored, avoiding shape mismatches.
     from options import opts as default_opts
     import copy
-
     saved_opts_path = os.path.join(finetune_dir, 'options.json')
     if os.path.exists(saved_opts_path):
         print(f"  Loading opts from {saved_opts_path}")
@@ -332,7 +327,6 @@ def predict_cell_density(mat_file: str,
               f"Using default opts — this may cause a shape mismatch if "
               f"the network architecture was customised.")
         opts = copy.deepcopy(default_opts)
-
     # Override only the fields needed for inference (no training)
     opts['inv_dat_file']   = mat_file
     opts['model_dir']      = finetune_dir
@@ -353,11 +347,9 @@ def predict_cell_density(mat_file: str,
     for k in opts['weights']:
         opts['weights'][k] = None
     opts['weights']['res'] = 1.0
-
     tf.random.set_seed(0)
     np.random.seed(0)
     g = Gmodel(opts)
-
     # Evaluate in batches to avoid OOM
     batch  = 10000
     u_pred = []
@@ -365,16 +357,47 @@ def predict_cell_density(mat_file: str,
     for i in range(0, len(X_pred), batch):
         u_batch = g.model(X_tf[i:i+batch]).numpy()
         u_pred.append(u_batch)
-
     u_pred = np.concatenate(u_pred, axis=0).reshape(n, n, n)
     np.save(os.path.join(output_dir, 'u_pinn_pred.npy'), u_pred)
     print(f"  Saved u_pinn_pred.npy  shape={u_pred.shape}  "
           f"max={u_pred.max():.4f}")
 
-    # Also save a summary of the learned parameters
-    params = {}
-    for k, v in g.param.items():
-        params[k] = float(v.numpy())
+    # Also save a summary of the learned parameters.
+    # NOTE: g.param is NOT used here — tf.train.Checkpoint(model) in glioma.py
+    # only tracks the Keras model's weights, not the param dict (rD, rRHO, etc).
+    # So g.param after restore is always reset to initparam defaults (1.0),
+    # regardless of what was actually learned during fine-tuning.
+    # The true learned values are written by save_upred() into
+    # upred_scipylbfgs.mat (or upred_adam.mat as a fallback) at the end of
+    # the fine-tuning solve — read from there instead.
+    def _extract_scalar(d, key):
+        v = d.get(key)
+        if v is None:
+            return None
+        v = np.array(v).ravel()
+        return float(v[0]) if len(v) > 0 else None
+
+    params = None
+    for fname in ['upred_scipylbfgs.mat', 'upred_adam.mat']:
+        candidate = os.path.join(finetune_dir, fname)
+        if not os.path.exists(candidate):
+            continue
+        saved_mat = loadmat(candidate, squeeze_me=True)
+        candidate_params = {}
+        for k in ['rD', 'rRHO', 'M', 'm', 'A', 'x0', 'y0', 'z0', 'th1', 'th2', 'kadc']:
+            val = _extract_scalar(saved_mat, k)
+            if val is not None:
+                candidate_params[k] = val
+        if 'rD' in candidate_params and 'rRHO' in candidate_params:
+            params = candidate_params
+            print(f"  Read learned parameters from {fname}")
+            break
+
+    if params is None:
+        print("  [WARNING] Could not find rD/rRHO in any saved .mat file — "
+              "falling back to g.param (likely returns initparam defaults).")
+        params = {k: float(v.numpy()) for k, v in g.param.items()}
+
     save_json(params, os.path.join(output_dir, 'learned_params.json'))
     print(f"  Learned parameters: {params}")
     return u_pred, params
